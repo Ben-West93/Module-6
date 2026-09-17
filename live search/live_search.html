@@ -1,0 +1,363 @@
+<!DOCTYPE html>
+<!--
+  L5 — API-Powered Live Search  (STARTER)
+  =========================================
+  Your goal: fetch users from JSONPlaceholder and build a live search UI.
+
+  Features to implement:
+    1. Fetch all users from https://jsonplaceholder.typicode.com/users on load
+    2. Display users as cards (name, email, city)
+    3. Search input that filters users by name or email as the user types
+    4. Result count: "Showing 3 of 10 users"
+    5. Loading state while fetching
+    6. Error handling with a friendly message
+
+  Key concepts:
+    • async/await     — write async code that reads like sync code
+    • response.ok     — check status before parsing JSON (true for 2xx codes)
+    • response.json() — parse the response body as JSON (returns a Promise)
+    • try/catch/finally — handle errors and always run cleanup code
+    • "input" event   — fires on every keystroke in an <input>
+-->
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Live User Search</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      font-family: 'Segoe UI', Tahoma, sans-serif;
+      background: #f0f2f5;
+      padding: 2rem 1rem;
+    }
+
+    /* Styles for the search input, result count, status message, and user cards */
+
+    .search-bar {
+      display: block;
+      width: 100%;
+      max-width: 500px;
+      margin: 0 auto 1rem;
+      padding: 0.75rem 1rem;
+      font-size: 1rem;
+      border: 2px solid #ccc;
+      border-radius: 8px;
+    }
+
+    .user-grid {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 1rem;
+      justify-content: center;
+      max-width: 900px;
+      margin: 0 auto;
+    }
+
+    .search-bar:focus {
+      outline: none;
+      border-color: #4a6cf7;
+    }
+
+    #result-count {
+      color: #555;
+      font-size: 0.95rem;
+    }
+
+    #status {
+      color: #555;
+      font-size: 1.05rem;
+      margin-bottom: 1rem;
+    }
+
+    #status.error {
+      color: #b00020;
+      background: #fdecea;
+      border: 1px solid #f5c2c0;
+      border-radius: 8px;
+      padding: 0.75rem 1rem;
+      max-width: 500px;
+      margin: 0 auto 1rem;
+    }
+
+    .user-card {
+      background: #fff;
+      border-radius: 10px;
+      padding: 1.25rem;
+      width: 260px;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+    }
+
+    .user-card h3 {
+      font-size: 1.1rem;
+      margin-bottom: 0.5rem;
+      color: #222;
+    }
+
+    .user-card p {
+      font-size: 0.9rem;
+      color: #555;
+      margin-bottom: 0.25rem;
+      overflow-wrap: anywhere;
+    }
+
+    .search-bar:disabled {
+      background: #e9ecef;
+      cursor: not-allowed;
+    }
+
+    .spinner {
+      display: inline-block;
+      width: 1.1rem;
+      height: 1.1rem;
+      margin-right: 0.5rem;
+      vertical-align: middle;
+      border: 3px solid #ccc;
+      border-top-color: #4a6cf7;
+      border-radius: 50%;
+      animation: spin 0.8s linear infinite;
+    }
+
+    @keyframes spin {
+      to { transform: rotate(360deg); }
+    }
+
+    .btn {
+      margin-left: 0.5rem;
+      padding: 0.35rem 0.9rem;
+      font-size: 0.9rem;
+      color: #fff;
+      background: #4a6cf7;
+      border: none;
+      border-radius: 6px;
+      cursor: pointer;
+    }
+
+    .btn:hover { background: #3a58d6; }
+
+    mark {
+      background: #ffe58a;
+      border-radius: 2px;
+      padding: 0 1px;
+    }
+
+    .no-results {
+      width: 100%;
+      text-align: center;
+      color: #777;
+    }
+  </style>
+</head>
+<body>
+
+  <h1 style="text-align:center; margin-bottom: 1rem;">User Directory</h1>
+
+  <input
+    type="search"
+    class="search-bar"
+    id="search-input"
+    placeholder="Search by name or email…"
+    disabled
+  />
+
+  <p id="result-count" style="text-align:center; margin-bottom:1rem;"></p>
+  <div id="status" style="text-align:center;"><span class="spinner"></span>Loading users…</div>
+  <div class="user-grid" id="user-grid"></div>
+
+  <script>
+    // ── Step 1: Declare a variable to hold all users ────────────────────
+    // Use let because it will be assigned after the fetch resolves.
+    let allUsers = [];
+
+    // ── Step 2: Get DOM references ──────────────────────────────────────
+    const searchInput = document.querySelector('#search-input');
+    const resultCount = document.querySelector('#result-count');
+    const statusDiv   = document.querySelector('#status');
+    const userGrid    = document.querySelector('#user-grid');
+
+    // Debounce timer for the search input (improvement 4)
+    let debounceTimer = null;
+    const DEBOUNCE_MS = 250;
+
+    // ── Step 3: fetchUsers() ────────────────────────────────────────────
+    async function fetchUsers() {
+      // Show the spinner and lock the search box while loading (improvements 7 & 8)
+      showLoading();
+
+      try {
+        // Request users from the API
+        const response = await fetch("https://jsonplaceholder.typicode.com/users");
+
+        // Check the status before parsing
+        if (!response.ok) {
+          throw new Error(`Server returned ${response.status}`);
+        }
+
+        // Parse the body as JSON
+        allUsers = await response.json();
+
+        // Hide the loading message
+        statusDiv.style.display = "none";
+
+        // Enable searching now that data is here (improvement 8)
+        searchInput.disabled = false;
+
+        // Display users (respect anything already in the search box)
+        applySearch();
+
+      } catch (err) {
+        // Show a friendly error message with a Retry button (improvement 3)
+        showError(err.message);
+      } finally {
+        // Always runs
+        console.log("fetchUsers() finished.");
+      }
+    }
+
+    // Loading state: spinner + message, search disabled
+    function showLoading() {
+      searchInput.disabled = true;
+      statusDiv.className = "";
+      statusDiv.style.display = "block";
+      statusDiv.innerHTML = '<span class="spinner"></span>Loading users…';
+    }
+
+    // Error state: message + Retry button
+    function showError(message) {
+      statusDiv.className = "error";
+      statusDiv.style.display = "block";
+      statusDiv.textContent = `Sorry, we couldn't load users. (${message})`;
+
+      const retryBtn = document.createElement("button");
+      retryBtn.className = "btn";
+      retryBtn.id = "retry-btn";
+      retryBtn.textContent = "Retry";
+      retryBtn.addEventListener("click", fetchUsers);
+      statusDiv.appendChild(retryBtn);
+    }
+
+    // ── Step 4: renderUsers(users) ──────────────────────────────────────
+    // Updates the DOM to show the given array of users.
+    // `query` is optional and is used to highlight matches (improvement 5).
+    function renderUsers(users, query = "") {
+      // Update the result count
+      resultCount.textContent = `Showing ${users.length} of ${allUsers.length} users`;
+
+      // Clear the grid
+      userGrid.innerHTML = "";
+
+      // No results message with a Clear search button (improvement 6)
+      if (users.length === 0) {
+        const msg = document.createElement("p");
+        msg.className = "no-results";
+        msg.textContent = "No results found.";
+
+        if (searchInput.value.trim() !== "") {
+          const clearBtn = document.createElement("button");
+          clearBtn.className = "btn";
+          clearBtn.id = "clear-btn";
+          clearBtn.textContent = "Clear search";
+          clearBtn.addEventListener("click", clearSearch);
+          msg.appendChild(clearBtn);
+        }
+
+        userGrid.appendChild(msg);
+        return;
+      }
+
+      // Build each card with DOM methods + textContent so data
+      // can never inject HTML (improvement 1)
+      users.forEach(function (user) {
+        const card = document.createElement("div");
+        card.className = "user-card";
+
+        const nameEl = document.createElement("h3");
+        appendHighlighted(nameEl, "", user.name, query);
+
+        const emailEl = document.createElement("p");
+        appendHighlighted(emailEl, "📧 ", user.email, query);
+
+        const cityEl = document.createElement("p");
+        // Safe fallback if address or city is missing (improvement 2)
+        cityEl.textContent = `📍 ${user.address?.city ?? "Unknown"}`;
+
+        card.append(nameEl, emailEl, cityEl);
+        userGrid.appendChild(card);
+      });
+    }
+
+    // Adds `prefix + text` to `el`, wrapping every match of `query` in <mark>.
+    // Uses text nodes only, so it stays safe from HTML injection.
+    function appendHighlighted(el, prefix, text, query) {
+      const value = String(text ?? "Unknown");
+      if (prefix) el.appendChild(document.createTextNode(prefix));
+
+      if (!query) {
+        el.appendChild(document.createTextNode(value));
+        return;
+      }
+
+      const lower = value.toLowerCase();
+      let start = 0;
+      let index = lower.indexOf(query);
+
+      while (index !== -1) {
+        if (index > start) {
+          el.appendChild(document.createTextNode(value.slice(start, index)));
+        }
+        const mark = document.createElement("mark");
+        mark.textContent = value.slice(index, index + query.length);
+        el.appendChild(mark);
+        start = index + query.length;
+        index = lower.indexOf(query, start);
+      }
+
+      if (start < value.length) {
+        el.appendChild(document.createTextNode(value.slice(start)));
+      }
+    }
+
+    // ── Step 5: Live filtering ──────────────────────────────────────────
+    // Reads the search box, filters, and renders.
+    function applySearch() {
+      // Get the query, lowercase and trimmed
+      const query = searchInput.value.toLowerCase().trim();
+
+      // Empty query: show everyone
+      if (query === "") {
+        renderUsers(allUsers);
+        return;
+      }
+
+      // Keep users whose name or email contains the query
+      const filtered = allUsers.filter(function (user) {
+        return (
+          String(user.name ?? "").toLowerCase().includes(query) ||
+          String(user.email ?? "").toLowerCase().includes(query)
+        );
+      });
+
+      renderUsers(filtered, query);
+    }
+
+    function clearSearch() {
+      clearTimeout(debounceTimer);
+      searchInput.value = "";
+      applySearch();
+      searchInput.focus();
+    }
+
+    // The "input" event fires after every keystroke; wait until the
+    // user pauses before filtering (improvement 4)
+    searchInput.addEventListener("input", function () {
+      clearTimeout(debounceTimer);
+      debounceTimer = setTimeout(applySearch, DEBOUNCE_MS);
+    });
+
+    // ── Step 6: Kick off the fetch ──────────────────────────────────────
+    fetchUsers();
+  </script>
+
+</body>
+</html>
