@@ -1,0 +1,103 @@
+<!DOCTYPE html>
+<!--
+  L2 — Semantic Portfolio Page  (COMPLETED)
+  Semantic structure: header, nav, main, section, article, footer.
+  No CSS — structure and meaning only. Every <img> has an alt attribute.
+-->
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Ben — Portfolio</title>
+</head>
+<body>
+
+  <header>
+    <h1>Ben</h1>
+    <p>Aspiring software developer building clean, practical web applications.</p>
+    <nav>
+      <ul>
+        <li><a href="#about">About</a></li>
+        <li><a href="#projects">Projects</a></li>
+        <li><a href="#skills">Skills</a></li>
+        <li><a href="#contact">Contact</a></li>
+      </ul>
+    </nav>
+  </header>
+
+  <main>
+
+    <section id="about">
+      <h2>About Me</h2>
+      <p>
+        I'm a developer based in Iowa who enjoys turning ideas into working
+        software. I'm currently growing my skills in Python, web development,
+        and APIs through hands-on coursework, and I'm especially interested in
+        building tools that help small businesses stay organized.
+      </p>
+      <img src="images/profile.svg" alt="Portrait placeholder of Ben, the author of this portfolio" width="400" height="250" />
+    </section>
+
+    <section id="projects">
+      <h2>Projects</h2>
+
+      <article>
+        <h3>Python Command-Line Task Tracker</h3>
+        <p><strong>Module 3</strong></p>
+        <p>
+          A command-line program for adding, listing, and completing tasks,
+          using functions, lists, and file storage to save data between runs.
+        </p>
+        <img src="images/module3.svg" alt="Screenshot placeholder of the task tracker running in a terminal" width="400" height="250" />
+      </article>
+
+      <article>
+        <h3>REST API with FastAPI</h3>
+        <p><strong>Module 4</strong></p>
+        <p>
+          A small REST API built with FastAPI that supports create, read,
+          update, and delete operations with request validation.
+        </p>
+        <img src="images/module4.svg" alt="Screenshot placeholder of the API's interactive documentation page" width="400" height="250" />
+      </article>
+
+      <article>
+        <h3>Full-Stack Final Project</h3>
+        <p><strong>Module 5</strong></p>
+        <p>
+          A capstone web application combining a backend API with a simple
+          front end, demonstrating everything learned across the course.
+        </p>
+        <img src="images/module5.svg" alt="Screenshot placeholder of the final project's home page" width="400" height="250" />
+      </article>
+    </section>
+
+    <section id="skills">
+      <h2>Skills</h2>
+      <ul>
+        <li>HTML5 and semantic markup</li>
+        <li>Python</li>
+        <li>FastAPI and REST API design</li>
+        <li>Git and GitHub</li>
+        <li>Debugging and problem solving</li>
+        <li>Web accessibility basics</li>
+      </ul>
+    </section>
+
+    <section id="contact">
+      <h2>Contact</h2>
+      <p>Email: <a href="mailto:ben.developer@example.com">ben.developer@example.com</a></p>
+      <ul>
+        <li><a href="https://github.com/ben-developer">GitHub</a></li>
+        <li><a href="https://www.linkedin.com/in/ben-developer">LinkedIn</a></li>
+      </ul>
+    </section>
+
+  </main>
+
+  <footer>
+    <p>&copy; 2026 Ben. All rights reserved.</p>
+  </footer>
+
+</body>
+</html>
