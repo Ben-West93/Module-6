@@ -1,0 +1,407 @@
+<!DOCTYPE html>
+<!--
+  L6 — Mini Dashboard: HTML Frontend
+  ================================================
+  Requires the FastAPI backend running at http://localhost:8000
+  Start it with: uvicorn mini_api:app --reload --port 8000
+
+  Features:
+    1. Stats bar — total / done / pending counts
+    2. Task list — loaded via fetch(GET /tasks) on page load
+    3. Add task form — POST /tasks with a JSON body
+    4. Toggle per task — PATCH /tasks/{id}/complete and PATCH /tasks/{id}
+    5. Delete per task — DELETE /tasks/{id}
+    6. Filter tabs — All / Pending / Done (client-side, no extra requests)
+    7. Refresh button and last-fetched timestamp
+    8. Error message if the API is unreachable
+-->
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Task Dashboard</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    body { font-family: 'Segoe UI', Tahoma, sans-serif; background: #f0f2f5; padding: 2rem 1rem; color: #1f2430; }
+    h1 { text-align: center; margin-bottom: 1.5rem; }
+    .panel { max-width: 600px; margin: 0 auto; }
+    button { padding: 0.6rem 1rem; border: none; border-radius: 6px; cursor: pointer; font: inherit; }
+    button:disabled { opacity: 0.55; cursor: not-allowed; }
+
+    /* Stats bar */
+    #stats { max-width: 600px; margin: 0 auto 1rem; display: flex; gap: 0.75rem; }
+    #stats p {
+      flex: 1; background: #fff; border-radius: 8px; padding: 0.9rem 0.5rem;
+      text-align: center; font-size: 0.85rem; color: #6b7280;
+      box-shadow: 0 1px 3px rgba(0,0,0,0.08);
+    }
+    #stats span { display: block; font-size: 1.6rem; font-weight: 700; color: #1f2430; }
+
+    .panel > form, .panel > .toolbar, .panel > #task-list, .panel > .filters {
+      background: #fff; border-radius: 8px; box-shadow: 0 1px 3px rgba(0,0,0,0.08);
+    }
+
+    /* Add form */
+    #add-form { display: flex; gap: 0.5rem; padding: 0.75rem; margin-bottom: 0.75rem; }
+    #new-task-input { flex: 1; padding: 0.6rem 0.8rem; border: 1px solid #d1d5db; border-radius: 6px; font: inherit; }
+    #new-task-input:focus { outline: 2px solid #2563eb; outline-offset: -1px; }
+    #add-form button { background: #2563eb; color: #fff; }
+    #add-form button:hover:not(:disabled) { background: #1d4ed8; }
+
+    /* Filters */
+    .filters { display: flex; gap: 0.25rem; padding: 0.4rem; margin-bottom: 0.75rem; }
+    .filter-btn { flex: 1; background: transparent; color: #6b7280; font-size: 0.9rem; }
+    .filter-btn:hover:not(.active) { background: #f3f4f6; }
+    .filter-btn.active { background: #1f2430; color: #fff; }
+
+    /* Toolbar */
+    .toolbar { display: flex; align-items: center; justify-content: space-between; gap: 0.5rem; padding: 0.6rem 0.75rem; margin-bottom: 0.75rem; }
+    #refresh-btn { background: #e5e7eb; color: #1f2430; }
+    #refresh-btn:hover:not(:disabled) { background: #d1d5db; }
+    #timestamp { font-size: 0.8rem; color: #6b7280; }
+
+    /* Messages */
+    #status { text-align: center; color: #6b7280; font-size: 0.9rem; margin-bottom: 0.75rem; }
+    #error-msg { color: #b91c1c; background: #fee2e2; border: 1px solid #fca5a5; border-radius: 6px; padding: 0.75rem; margin-bottom: 0.75rem; }
+    .hidden { display: none; }
+
+    /* Task list */
+    #task-list { list-style: none; overflow: hidden; }
+    #task-list li { display: flex; align-items: center; gap: 0.6rem; padding: 0.85rem 1rem; border-bottom: 1px solid #eef0f3; }
+    #task-list li:last-child { border-bottom: none; }
+    .task-checkbox { width: 1.1rem; height: 1.1rem; cursor: pointer; flex-shrink: 0; }
+    .task-title { flex: 1; }
+    .task-meta { font-size: 0.75rem; color: #9ca3af; }
+    li.done .task-title { text-decoration: line-through; color: #9ca3af; }
+    li.pending-sync { opacity: 0.6; }
+    .delete-btn { background: transparent; color: #9ca3af; font-size: 1rem; line-height: 1; padding: 0.35rem 0.55rem; }
+    .delete-btn:hover:not(:disabled) { background: #fee2e2; color: #b91c1c; }
+    .empty { padding: 1.25rem; text-align: center; color: #6b7280; }
+  </style>
+</head>
+<body>
+
+  <h1>Task Dashboard</h1>
+
+  <!-- Stats bar -->
+  <div id="stats">
+    <p>Total <span id="stat-total">–</span></p>
+    <p>Done <span id="stat-done">–</span></p>
+    <p>Pending <span id="stat-pending">–</span></p>
+  </div>
+
+  <div class="panel">
+    <!-- Add task form -->
+    <form id="add-form">
+      <input type="text" id="new-task-input" placeholder="Add a new task…" required />
+      <button type="submit">Add Task</button>
+    </form>
+
+    <!-- Filter tabs -->
+    <div class="filters" id="filters">
+      <button type="button" class="filter-btn active" data-filter="all">All</button>
+      <button type="button" class="filter-btn" data-filter="pending">Pending</button>
+      <button type="button" class="filter-btn" data-filter="done">Done</button>
+    </div>
+
+    <!-- Refresh button and timestamp -->
+    <div class="toolbar">
+      <button id="refresh-btn">↻ Refresh</button>
+      <p id="timestamp"></p>
+    </div>
+
+    <!-- Status / error messages -->
+    <div id="status">Loading…</div>
+    <div id="error-msg" class="hidden"></div>
+
+    <!-- Task list -->
+    <ul id="task-list"></ul>
+  </div>
+
+  <script>
+    const API = "http://localhost:8000";
+
+    // ── DOM references ─────────────────────────────────────────────────
+    const taskList     = document.querySelector('#task-list');
+    const statusDiv    = document.querySelector('#status');
+    const errorMsg     = document.querySelector('#error-msg');
+    const timestamp    = document.querySelector('#timestamp');
+    const addForm      = document.querySelector('#add-form');
+    const newTaskInput = document.querySelector('#new-task-input');
+    const refreshBtn   = document.querySelector('#refresh-btn');
+    const filtersDiv   = document.querySelector('#filters');
+    const addBtn       = addForm.querySelector('button[type="submit"]');
+
+    const statTotal    = document.querySelector('#stat-total');
+    const statDone     = document.querySelector('#stat-done');
+    const statPending  = document.querySelector('#stat-pending');
+
+    // ── App state ──────────────────────────────────────────────────────
+    // The last list the server gave us. Optimistic updates edit this copy
+    // first and roll it back if the request fails.
+    let currentTasks = [];
+    let currentFilter = "all";
+
+    // ── Small helpers ──────────────────────────────────────────────────
+    function showError(message) {
+      errorMsg.textContent = message;
+      errorMsg.classList.remove('hidden');
+    }
+
+    function clearError() {
+      errorMsg.textContent = "";
+      errorMsg.classList.add('hidden');
+    }
+
+    // Single place where every request is made, so status checking and
+    // network-failure handling stay consistent across the whole app.
+    async function apiRequest(path, options = {}) {
+      let response;
+      try {
+        response = await fetch(API + path, options);
+      } catch (networkError) {
+        throw new Error("Could not reach the API. Is the server running on " + API + "?");
+      }
+
+      if (!response.ok) {
+        // FastAPI errors look like {"detail": "..."}; fall back to the status text.
+        let detail = response.statusText;
+        try {
+          const body = await response.json();
+          if (body && body.detail) {
+            detail = typeof body.detail === "string" ? body.detail : JSON.stringify(body.detail);
+          }
+        } catch (parseError) {
+          /* no JSON body — keep the status text */
+        }
+        throw new Error("Request failed (" + response.status + "): " + detail);
+      }
+
+      // 204 No Content (DELETE) has no body to parse.
+      if (response.status === 204) return null;
+      return response.json();
+    }
+
+    // ── fetchTasks() ───────────────────────────────────────────────────
+    async function fetchTasks() {
+      statusDiv.textContent = "Loading…";
+      refreshBtn.disabled = true;
+
+      try {
+        const tasks = await apiRequest("/tasks");
+
+        if (!Array.isArray(tasks)) {
+          throw new Error("Unexpected response: expected a list of tasks.");
+        }
+
+        clearError();
+        currentTasks = tasks;
+        render();
+        timestamp.textContent = "Last updated: " + new Date().toLocaleTimeString();
+      } catch (error) {
+        statusDiv.textContent = "";
+        showError(error.message);
+      } finally {
+        refreshBtn.disabled = false;
+      }
+    }
+
+    // ── render() ────────────────────────────────────────────────────────
+    // Draws from currentTasks, so optimistic updates can redraw instantly
+    // without a round trip. Stats always reflect ALL tasks, not the filter.
+    function render() {
+      renderTasks(visibleTasks());
+      updateStats(currentTasks);
+      statusDiv.textContent = currentTasks.length === 0 ? "No tasks yet." : "";
+    }
+
+    function visibleTasks() {
+      if (currentFilter === "pending") return currentTasks.filter(function (t) { return !t.done; });
+      if (currentFilter === "done")    return currentTasks.filter(function (t) { return t.done; });
+      return currentTasks;
+    }
+
+    // ── renderTasks(tasks) ──────────────────────────────────────────────
+    function renderTasks(tasks) {
+      taskList.innerHTML = "";
+
+      if (tasks.length === 0) {
+        const li = document.createElement("li");
+        li.className = "empty";
+        li.textContent = currentTasks.length === 0
+          ? "Nothing here yet — add your first task above."
+          : "No tasks match this filter.";
+        taskList.appendChild(li);
+        return;
+      }
+
+      tasks.forEach(function (task) {
+        const li = document.createElement("li");
+        li.dataset.id = task.id;
+        if (task.done) li.classList.add("done");
+        if (task.syncing) li.classList.add("pending-sync");
+
+        // Checkbox toggles both ways: done → pending and back.
+        const checkbox = document.createElement("input");
+        checkbox.type = "checkbox";
+        checkbox.className = "task-checkbox";
+        checkbox.checked = task.done;
+        checkbox.title = task.done ? "Mark as pending" : "Mark as done";
+        checkbox.addEventListener("change", function () {
+          toggleTask(task.id, checkbox.checked);
+        });
+        li.appendChild(checkbox);
+
+        const title = document.createElement("span");
+        title.className = "task-title";
+        // textContent (not innerHTML) so HTML in a title is shown, not executed.
+        title.textContent = task.title;
+        li.appendChild(title);
+
+        if (task.created_at) {
+          const meta = document.createElement("span");
+          meta.className = "task-meta";
+          meta.textContent = task.created_at;
+          li.appendChild(meta);
+        }
+
+        const del = document.createElement("button");
+        del.className = "delete-btn";
+        del.textContent = "✕";
+        del.title = "Delete task";
+        del.setAttribute("aria-label", "Delete task: " + task.title);
+        del.addEventListener("click", function () { deleteTask(task.id); });
+        li.appendChild(del);
+
+        taskList.appendChild(li);
+      });
+    }
+
+    // ── updateStats(tasks) ─────────────────────────────────────────────
+    function updateStats(tasks) {
+      const done = tasks.filter(function (task) { return task.done; }).length;
+      statTotal.textContent   = tasks.length;
+      statDone.textContent    = done;
+      statPending.textContent = tasks.length - done;
+    }
+
+    // ── toggleTask(id, done) ───────────────────────────────────────────
+    // Optimistic: flip the local copy and redraw immediately, then confirm
+    // with the server and roll back if the request fails.
+    async function toggleTask(id, done) {
+      const snapshot = currentTasks.map(function (t) { return Object.assign({}, t); });
+
+      const task = currentTasks.find(function (t) { return t.id === id; });
+      if (!task) return;
+      task.done = done;
+      task.syncing = true;
+      render();
+
+      try {
+        // /complete is the dedicated one-click route; un-completing uses the
+        // general update route with an explicit body.
+        const updated = done
+          ? await apiRequest("/tasks/" + id + "/complete", { method: "PATCH" })
+          : await apiRequest("/tasks/" + id, {
+              method: "PATCH",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({ done: false }),
+            });
+
+        // Verify the server applied exactly what we asked for.
+        if (!updated || updated.id !== id || updated.done !== done) {
+          throw new Error("Server did not confirm the change to task " + id + ".");
+        }
+
+        clearError();
+        await fetchTasks();
+      } catch (error) {
+        currentTasks = snapshot;   // roll back
+        render();
+        showError(error.message);
+      }
+    }
+
+    // ── deleteTask(id) ─────────────────────────────────────────────────
+    async function deleteTask(id) {
+      const snapshot = currentTasks.map(function (t) { return Object.assign({}, t); });
+
+      currentTasks = currentTasks.filter(function (t) { return t.id !== id; });
+      render();
+
+      try {
+        await apiRequest("/tasks/" + id, { method: "DELETE" });
+
+        // Verify it is really gone server-side.
+        const remaining = await apiRequest("/tasks");
+        if (Array.isArray(remaining) && remaining.some(function (t) { return t.id === id; })) {
+          throw new Error("Server still reports task " + id + " as present.");
+        }
+
+        clearError();
+        currentTasks = remaining;
+        render();
+        timestamp.textContent = "Last updated: " + new Date().toLocaleTimeString();
+      } catch (error) {
+        currentTasks = snapshot;   // roll back
+        render();
+        showError(error.message);
+      }
+    }
+
+    // ── Add task form ──────────────────────────────────────────────────
+    addForm.addEventListener("submit", async function (event) {
+      event.preventDefault();
+
+      const title = newTaskInput.value.trim();
+      if (!title) {
+        showError("Please enter a task title.");
+        return;
+      }
+
+      addBtn.disabled = true;
+
+      try {
+        const created = await apiRequest("/tasks", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ title: title }),
+        });
+
+        // Compare what came back against what we sent.
+        if (!created || created.title !== title) {
+          throw new Error("Server returned a task that does not match what was sent.");
+        }
+
+        clearError();
+        newTaskInput.value = "";
+        await fetchTasks();
+      } catch (error) {
+        showError(error.message);
+      } finally {
+        addBtn.disabled = false;
+        newTaskInput.focus();
+      }
+    });
+
+    // ── Filter tabs ────────────────────────────────────────────────────
+    filtersDiv.addEventListener("click", function (event) {
+      const button = event.target.closest(".filter-btn");
+      if (!button) return;
+
+      currentFilter = button.dataset.filter;
+      filtersDiv.querySelectorAll(".filter-btn").forEach(function (b) {
+        b.classList.toggle("active", b === button);
+      });
+      render();   // purely local — no extra request
+    });
+
+    // ── Refresh button ─────────────────────────────────────────────────
+    refreshBtn.addEventListener("click", fetchTasks);
+
+    // ── Initial load ───────────────────────────────────────────────────
+    fetchTasks();
+  </script>
+
+</body>
+</html>
