@@ -1,0 +1,138 @@
+/*
+  L3 — Styled Portfolio  (CSS file)
+  Selector types used: element (body, h2, a), class (.project-card),
+  descendant (.main-nav a), pseudo-class (:hover, :focus-visible).
+*/
+
+/* Default font, background colour, and text colour */
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  font-family: "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+  line-height: 1.6;
+  background-color: #f4f6f8;
+  color: #222831;
+}
+
+/* Dark header bar */
+.site-header {
+  background-color: #1f2a36;
+  color: #ffffff;
+  padding: 2rem 0 1.25rem;
+}
+
+/* Centre inner header content and cap its width */
+.header-content {
+  max-width: 800px;
+  margin: 0 auto;
+  padding: 0 1rem;
+}
+
+.site-header h1 {
+  margin: 0;
+  font-size: 2.25rem;
+}
+
+.tagline {
+  margin: 0.25rem 0 1rem;
+  color: #c9d3dd;
+}
+
+/* Nav list: no bullets, items in a row (descendant selector) */
+.main-nav ul {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+
+/* Nav links: white, no underline (descendant selector) */
+.main-nav a {
+  display: inline-block;
+  color: #ffffff;
+  text-decoration: none;
+  padding: 0.4rem 0.8rem;
+  border-radius: 4px;
+  transition: background-color 0.2s ease, color 0.2s ease;
+}
+
+/* Hover (and keyboard focus) style for nav links */
+.main-nav a:hover,
+.main-nav a:focus-visible {
+  background-color: #3c8dbc;
+  color: #ffffff;
+}
+
+/* Centred main content with padding */
+.content-wrapper {
+  max-width: 800px;
+  margin: 2rem auto;
+  padding: 0 1rem;
+}
+
+/* Flexbox grid for project cards */
+.project-grid {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 1.25rem;
+}
+
+/* Project card — box model: padding, border, margin/gap, shadow */
+.project-card {
+  flex: 1 1 220px;
+  padding: 1.25rem;
+  margin: 0; /* spacing handled by .project-grid gap */
+  border: 1px solid #d5dde5;
+  border-radius: 8px;
+  background-color: #ffffff;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.08);
+}
+
+.project-card h3 {
+  margin-top: 0;
+}
+
+/* Module label inside each card */
+.project-module {
+  margin: -0.5rem 0 0.75rem;
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: #3c8dbc;
+}
+
+/* Footer: dark background, light text, centred */
+.site-footer {
+  background-color: #1f2a36;
+  color: #c9d3dd;
+  text-align: center;
+  padding: 1.25rem 1rem;
+}
+
+.site-footer p {
+  margin: 0;
+}
+
+/* Extra rules */
+h2 {
+  border-bottom: 2px solid #3c8dbc;
+  padding-bottom: 0.25rem;
+}
+
+section {
+  margin-bottom: 2.5rem;
+}
+
+.content-wrapper a {
+  color: #2a6f97;
+}
+
+.content-wrapper a:hover {
+  color: #1f2a36;
+}

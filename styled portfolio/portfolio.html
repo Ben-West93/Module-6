@@ -1,0 +1,104 @@
+<!DOCTYPE html>
+<!--
+  L3 — Styled Portfolio  (STARTER — HTML file)
+  ==============================================
+  Your goal: add CSS classes to this HTML file so that styles.css can
+  target the right elements.
+
+  Steps:
+  1. Open styles.css and read the class names defined there.
+  2. Add the matching class attributes to the elements below.
+     Example: change <header> to <header class="site-header">
+  3. Open portfolio.html in a browser and verify the styles apply.
+
+  Classes to assign (defined in styles.css):
+    .site-header      → the <header> element
+    .header-content   → the <div> inside <header>
+    .tagline          → the <p> below <h1>
+    .main-nav         → the <nav> element
+    .content-wrapper  → the <main> element
+    .project-grid     → the <div> wrapping all project <article>s
+    .project-card     → each <article>
+    .project-module   → the module-label <p> inside each card
+    .site-footer      → the <footer> element
+-->
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Ben West — Portfolio</title>
+  <link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+
+  <header class="site-header">
+    <div class="header-content">
+    <h1>Ben West</h1>
+    <p class="tagline">Aspiring software developer building clean, practical web applications.</p>
+    <nav class="main-nav" aria-label="Main navigation">
+      <ul>
+        <li><a href="#about">About</a></li>
+        <li><a href="#projects">Projects</a></li>
+        <li><a href="#skills">Skills</a></li>
+        <li><a href="#contact">Contact</a></li>
+      </ul>
+    </nav>
+    </div>
+  </header>
+
+  <main class="content-wrapper">
+
+    <section id="about">
+      <h2>About Me</h2>
+      <p>I'm a developer based in Iowa who enjoys turning ideas into working software. I'm currently growing my skills in Python, web development, and APIs through hands-on coursework, and I'm especially interested in building tools that help small businesses stay organized.</p>
+    </section>
+
+    <section id="projects">
+      <h2>Projects</h2>
+      <div class="project-grid">
+
+        <article class="project-card">
+          <h3>Project One</h3>
+          <p class="project-module">Module 1 — AI Fundamentals</p>
+          <p>Describe your project here.</p>
+        </article>
+
+        <article class="project-card">
+          <h3>Project Two</h3>
+          <p class="project-module">Module 2 — Advanced Python</p>
+          <p>Describe your project here.</p>
+        </article>
+
+        <article class="project-card">
+          <h3>Project Three</h3>
+          <p class="project-module">Module 3 — Databases &amp; SQL</p>
+          <p>Describe your project here.</p>
+        </article>
+
+      </div>
+    </section>
+
+    <section id="skills">
+      <h2>Skills</h2>
+      <ul>
+        <li>Python</li>
+        <li>SQL</li>
+        <li>HTML &amp; CSS</li>
+        <li>Git</li>
+        <li>REST APIs</li>
+      </ul>
+    </section>
+
+    <section id="contact">
+      <h2>Contact</h2>
+      <p>Email: <a href="mailto:you@example.com">you@example.com</a></p>
+    </section>
+
+  </main>
+
+  <footer class="site-footer">
+    <p>&copy; 2026 Ben West.</p>
+  </footer>
+
+</body>
+</html>
