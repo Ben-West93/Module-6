@@ -1,0 +1,270 @@
+<!DOCTYPE html>
+<!--
+  L4 — Interactive Flashcard App  (STARTER)
+  ===========================================
+  Your goal: build a working flashcard app in a single HTML file.
+
+  Features to implement:
+    1. Array of 5 Q&A pairs (topics: HTTP methods, CSS selectors, DOM,
+       status codes, async/await)
+    2. Display the current question
+    3. "Show Answer" button — toggle answer visibility
+    4. "Next" button — advance to the next card, hide the answer
+    5. Progress indicator: "Card X of 5"
+    6. Loop back to Card 1 after the last card
+
+  Key concepts to use:
+    • let vs const    — use const for things that don't change, let for state
+    • querySelector() — find a DOM element by CSS selector
+    • addEventListener("click", fn) — respond to button clicks
+    • textContent     — read or write the text inside an element
+    • style.display   — "none" to hide, "block" to show
+-->
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Web Dev Flashcards</title>
+  <style>
+    /* Basic styling.
+       Suggested rules:
+         body     — dark background, centered content, flexbox column
+         .card    — rounded box, border, padding, max-width
+         .answer  — different background colour, start with display: none
+         button   — coloured background, padding, cursor: pointer
+    */
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      font-family: 'Segoe UI', Tahoma, sans-serif;
+      background-color: #1e1e2e;
+      color: #e0e0e0;
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 1.5rem;
+      padding: 1rem;
+    }
+
+    .card {
+      width: 100%;
+      max-width: 500px;
+      background-color: #2a2a3d;
+      border: 1px solid #44445a;
+      border-radius: 12px;
+      padding: 1.5rem;
+      display: flex;
+      flex-direction: column;
+      gap: 1rem;
+    }
+
+    .answer {
+      /* IMPORTANT: the answer must start hidden */
+      display: none;
+      background-color: #33334d;
+      border-left: 4px solid #7aa2f7;
+      border-radius: 6px;
+      padding: 1rem;
+    }
+
+    button {
+      background-color: #7aa2f7;
+      color: #1e1e2e;
+      border: none;
+      border-radius: 6px;
+      padding: 0.6rem 1.2rem;
+      font-size: 1rem;
+      font-weight: 600;
+      cursor: pointer;
+    }
+
+    button:hover {
+      background-color: #9bbcff;
+    }
+
+    /* Button row: wrap neatly on small screens */
+    .card > div:last-child {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.5rem;
+    }
+
+    /* Visible focus ring for keyboard users */
+    button:focus-visible {
+      outline: 3px solid #f9e2af;
+      outline-offset: 2px;
+    }
+
+    button:disabled {
+      opacity: 0.5;
+      cursor: not-allowed;
+    }
+
+    .hint {
+      font-size: 0.8rem;
+      color: #a0a0b8;
+      text-align: center;
+    }
+
+    #progress {
+      font-size: 0.9rem;
+      color: #a0a0b8;
+    }
+
+    #question {
+      font-size: 1.25rem;
+      font-weight: 600;
+    }
+  </style>
+</head>
+<body>
+
+  <h1>Web Dev Flashcards</h1>
+
+  <div class="card">
+    <p id="progress" aria-live="polite">Card 1 of 5</p>
+    <p id="question" aria-live="polite">Loading…</p>
+    <div class="answer" id="answer" aria-live="polite">Loading…</div>
+    <div>
+      <button id="prev-btn">← Previous</button>
+      <button id="show-btn" aria-controls="answer" aria-expanded="false">Show Answer</button>
+      <button id="next-btn">Next →</button>
+      <button id="shuffle-btn">Shuffle</button>
+    </div>
+  </div>
+
+  <p class="hint">Shortcuts: Space = flip · ← / → = previous / next</p>
+
+  <script>
+    // ── Step 1: Define your flashcard data ──────────────────────────────
+    // Use const because this array won't be reassigned.
+    // Each object has a "question" and an "answer" property.
+    const cards = [
+      { question: "What are the main HTTP methods and what do they do?",
+        answer: "GET retrieves data, POST creates data, PUT updates/replaces data, DELETE removes data." },
+      { question: "In CSS, what is the difference between #main and .main?",
+        answer: "#main selects the single element with id=\"main\"; .main selects every element with class=\"main\"." },
+      { question: "What is the DOM?",
+        answer: "The Document Object Model — a tree of objects the browser builds from HTML, which JavaScript can read and change." },
+      { question: "What do HTTP status codes 200, 404, and 500 mean?",
+        answer: "200 OK (success), 404 Not Found (resource doesn't exist), 500 Internal Server Error (the server failed)." },
+      { question: "What does the await keyword do in an async function?",
+        answer: "It pauses the async function until a Promise settles, then returns its resolved value (or throws if it rejects)." },
+    ];
+
+    // ── Step 2: State variables ─────────────────────────────────────────
+    // Use let because these values will change.
+    let currentIndex = 0;       // which card is active
+    let answerVisible = false;  // is the answer shown
+
+    // ── Step 3: Get references to DOM elements ──────────────────────────
+    // querySelector(selector) returns the first element matching the selector.
+    // '#id' selects by ID, '.class' by class, 'tag' by element type.
+    const progressEl = document.querySelector('#progress');
+    const questionEl = document.querySelector('#question');
+    const answerEl   = document.querySelector('#answer');
+    const showBtn    = document.querySelector('#show-btn');
+    const nextBtn    = document.querySelector('#next-btn');
+    const prevBtn    = document.querySelector('#prev-btn');
+    const shuffleBtn = document.querySelector('#shuffle-btn');
+
+    // ── Step 4: renderCard() — update the UI ───────────────────────────
+    function renderCard() {
+      // Guard: if there are no valid cards, show a message instead of crashing
+      if (!Array.isArray(cards) || cards.length === 0) {
+        progressEl.textContent = "Card 0 of 0";
+        questionEl.textContent = "No flashcards available.";
+        answerEl.style.display = "none";
+        [showBtn, nextBtn, prevBtn, shuffleBtn].forEach(btn => btn.disabled = true);
+        return;
+      }
+      [showBtn, nextBtn, prevBtn, shuffleBtn].forEach(btn => btn.disabled = false);
+
+      // Keep the index in range in case the array changed size
+      if (currentIndex >= cards.length) currentIndex = 0;
+
+      // Get the current card from cards[currentIndex]
+      const card = cards[currentIndex];
+
+      // Update progressEl.textContent to "Card X of 5"
+      progressEl.textContent = `Card ${currentIndex + 1} of ${cards.length}`;
+
+      // Update questionEl.textContent with the card's question
+      questionEl.textContent = card.question;
+
+      // Update answerEl.textContent with the card's answer
+      answerEl.textContent = card.answer;
+
+      // Show or hide the answer using answerEl.style.display
+      answerEl.style.display = answerVisible ? "block" : "none";
+
+      // Update showBtn.textContent based on whether answer is visible
+      showBtn.textContent = answerVisible ? "Hide Answer" : "Show Answer";
+      showBtn.setAttribute("aria-expanded", String(answerVisible));
+    }
+
+    // ── Step 5: Event listeners ─────────────────────────────────────────
+    // addEventListener(eventName, callbackFunction) runs the function
+    // every time that event fires on the element.
+
+    // "Show Answer" button
+    showBtn.addEventListener("click", function () {
+      // Toggle answerVisible
+      answerVisible = !answerVisible;
+      // Call renderCard() to update the UI
+      renderCard();
+    });
+
+    // "Next" button
+    nextBtn.addEventListener("click", function () {
+      // Advance currentIndex by 1, wrapping back to 0 after the last card
+      currentIndex = (currentIndex + 1) % cards.length;
+      // Reset answerVisible to false so the new card starts hidden
+      answerVisible = false;
+      // Call renderCard()
+      renderCard();
+    });
+
+    // "Previous" button — go back one card, wrapping from Card 1 to the last card
+    prevBtn.addEventListener("click", function () {
+      currentIndex = (currentIndex - 1 + cards.length) % cards.length;
+      answerVisible = false;
+      renderCard();
+    });
+
+    // "Shuffle" button — randomize card order (Fisher–Yates) and start over
+    shuffleBtn.addEventListener("click", function () {
+      for (let i = cards.length - 1; i > 0; i--) {
+        const j = Math.floor(Math.random() * (i + 1));
+        [cards[i], cards[j]] = [cards[j], cards[i]];
+      }
+      currentIndex = 0;
+      answerVisible = false;
+      renderCard();
+    });
+
+    // Keyboard shortcuts: Space = flip, ArrowLeft/ArrowRight = previous/next
+    document.addEventListener("keydown", function (event) {
+      // Don't hijack Space when a button has focus (it already clicks it)
+      if (event.target.tagName === "BUTTON" && event.key === " ") return;
+      if (showBtn.disabled) return;
+
+      if (event.key === " ") {
+        event.preventDefault();          // stop the page from scrolling
+        showBtn.click();
+      } else if (event.key === "ArrowRight") {
+        nextBtn.click();
+      } else if (event.key === "ArrowLeft") {
+        prevBtn.click();
+      }
+    });
+
+    // ── Step 6: Initial render ──────────────────────────────────────────
+    // Call renderCard() once here to display the first card on page load.
+    renderCard();
+  </script>
+
+</body>
+</html>
