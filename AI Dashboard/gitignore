@@ -1,0 +1,22 @@
+# Secrets — never commit. Keep this rule in place BEFORE the file is created,
+# or Git will already be tracking it and this line will have no effect.
+.streamlit/secrets.toml
+
+# Python bytecode
+__pycache__/
+*.pyc
+*.pyo
+
+# Virtual environments
+.venv/
+venv/
+env/
+
+# Environment variables (AI_DASHBOARD_SECRET, etc.)
+.env
+
+# Editor / OS noise
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db

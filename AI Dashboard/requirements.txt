@@ -1,0 +1,10 @@
+# Streamlit frontend
+streamlit>=1.35
+requests>=2.31
+plotly>=5.0
+pandas>=2.0
+
+# FastAPI backend (backend.py)
+fastapi>=0.110
+uvicorn>=0.27
+pyjwt>=2.8
