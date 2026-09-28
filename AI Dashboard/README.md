@@ -15,7 +15,8 @@ AI chat interface — with a mock-data mode so the whole UI works offline.
   surfaced as messages instead of stack traces
 - **AI Chat tab** — persistent chat history, `st.chat_input`, and word-by-word
   streaming via `st.write_stream`
-- **Layout** — wide page, sidebar (user info, logout, AI settings), three tabs
+- **Layout** — wide page, sidebar (user info, logout, AI settings), three tabs, and
+  a spinner on every network call so the page never sits silently mid-request
 
 ## Setup
 

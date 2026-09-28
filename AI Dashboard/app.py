@@ -41,7 +41,9 @@ per-task copy of MOCK_TASKS - the module-level constant is never mutated, so
 logging out and back in gives a clean slate.
 
 All backend communication goes through api_client.py, which returns
-(data, error) tuples and never raises; see its docstring for why.
+(data, error) tuples and never raises; see its docstring for why. Every real
+network call is wrapped in st.spinner() so the page never sits silently while
+a request is in flight; mock mode skips the spinners because nothing waits.
 """
 
 import os
@@ -133,8 +135,11 @@ def load_tasks():
     added or completed during the session persist across reruns.
     """
     if is_mock():
+        # No network call in mock mode, so no spinner - a spinner that never
+        # actually waits for anything just makes the UI flicker.
         return st.session_state.mock_tasks, None
-    return api_client.get_tasks(st.session_state.token)
+    with st.spinner("Loading tasks..."):
+        return api_client.get_tasks(st.session_state.token)
 
 
 def compute_stats(tasks) -> dict:
@@ -279,7 +284,8 @@ if not st.session_state.token:
                 st.session_state.login_error = None
                 st.rerun()
             else:
-                token, error = api_client.login(username, password)
+                with st.spinner("Signing in..."):
+                    token, error = api_client.login(username, password)
                 if error:
                     st.session_state.login_error = error
                 else:
@@ -441,7 +447,8 @@ with tab_tasks:
             st.success(f"Added '{title}'.")
             st.rerun()
         else:
-            created, error = api_client.create_task(st.session_state.token, title)
+            with st.spinner("Adding task..."):
+                created, error = api_client.create_task(st.session_state.token, title)
             if error:
                 if not handle_session_expiry(error):
                     st.error(error)
@@ -499,9 +506,10 @@ with tab_tasks:
                         item["done"] = True
                     st.rerun()
                 else:
-                    updated, complete_error = api_client.complete_task(
-                        st.session_state.token, task.get("id")
-                    )
+                    with st.spinner("Marking complete..."):
+                        updated, complete_error = api_client.complete_task(
+                            st.session_state.token, task.get("id")
+                        )
                     if complete_error:
                         if not handle_session_expiry(complete_error):
                             st.error(complete_error)
